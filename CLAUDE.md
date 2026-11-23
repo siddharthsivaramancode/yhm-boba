@@ -131,10 +131,5 @@ Newmix Coffee, Santioni Spirits, Johnny Dirty Soda.
 - Sounds were written by ear, not listened to in this environment; check them with the sound toggle on.
 - 60fps not measured (the browser pane throttles when hidden; headless rendering is software).
 
-## Outreach plan (business context)
-- Call ~2–4 PM only to ask when the owner is in; then walk in and show the site on a phone; leave a QR code;
-  follow up in 2–3 days. Never ask for their GoDaddy password; they keep their domain.
-- Price: the user is fine with $50 or free. Advice given: charge something small, or trade for a Google review,
-  a testimonial, portfolio rights and referrals. Fixed scope (one page, two revision rounds). Free hosting on
-  Netlify/Vercel. Honest odds given: ~20–30% at a normal price, ~50–60% at $50/free.
-- This is the user's first step toward a landing-page side gig (a niche, priced low at first).
+## Outreach plan
+Private: see `CLAUDE.local.md` (gitignored, not on GitHub).
