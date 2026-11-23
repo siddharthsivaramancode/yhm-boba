@@ -60,6 +60,7 @@ src/sfx.js                     filtered Web Audio: clink (muffled ice), slosh, s
                                low-pass master bus; off by default (localStorage yhm-sound)
 src/ui/store.js                UI store: labPick (menu -> lab drink), secret unlock (localStorage yhm-secret),
                                introDone (sessionStorage yhm-seal-pierced), receipt + counter-ticket payloads
+src/ui/phone.js                phoneClick: tel: links dial on phones; on desktop they copy the number + toast
 src/ui/useDialog.js            shared modal hook (scroll lock, focus trap, Esc, focus return) + copyText()
 src/order/store.js             bag store (useBag, bagActions add/setQty/remove/open/close/setMode, bagTotal,
                                hasUnpriced: null-priced lines are skipped in totals)
@@ -93,7 +94,8 @@ src/components/WallQR.jsx      QR sheet for the wall (qrcode 1.5.4, lazy-loaded,
 src/components/OurStory.jsx    "Born on West Poplar" story + three pillars (copy in data.js STORY)
 src/components/GalleryAndFooter.jsx  Lookbook: 6 cards, 3x2 grid (photo order: public/photos/lookbook-{neon|pour|wall|dubai}.jpg,
                                then Unsplash placeholder with credit tag, then canvas scene or flavor gradient; warm grade, grain, tilt)
-                               and Footer (visit info, open status, delivery links, catering modal: validates,
+                               and Footer (visit info, big phone pill, keyless Google Maps iframe from SHOP.mapEmbed
+                               + "Open in Google Maps", open status, delivery links, catering modal: validates,
                                sends nothing, confirmation with Call the shop + Copy inquiry)
 src/styles/base.css            tokens + chrome (nav, badge, pills, cursor, marquee, grain, preview card, receipt)
 ```

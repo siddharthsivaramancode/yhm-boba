@@ -1,7 +1,8 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { BROWN_SUGAR, SECRET_DRINK, reduceMotion, finePointer } from "../data.js";
+import { BROWN_SUGAR, SECRET_DRINK, SHOP, reduceMotion, finePointer } from "../data.js";
+import { phoneClick } from "../ui/phone.js";
 import { getUI, subscribeUI, uiActions } from "../ui/store.js";
 import { scrollToTarget } from "../scroll.js";
 import { sfx } from "../sfx.js";
@@ -176,7 +177,10 @@ export default function HeroCup() {
       </div>
 
       <div ref={contentRef} className="pointer-events-none relative z-10 flex w-full flex-col justify-center px-[var(--pad)] pb-14 pt-24 md:pt-[96px] max-[859px]:justify-start max-[859px]:pt-28 max-[859px]:pb-[min(340px,40svh)]" style={{ minHeight: "max(100svh, 640px)" }}>
-        <p className="hc-fade m-0 mb-4 font-sans text-[15px] font-semibold text-ink">Collierville · open daily 11 AM – 10 PM</p>
+        <p className="hc-fade m-0 mb-4 font-sans text-[15px] font-semibold text-ink">
+          Collierville · open daily 11 AM – 10 PM ·{" "}
+          <a href={`tel:${SHOP.tel}`} onClick={phoneClick} className="pointer-events-auto whitespace-nowrap text-ink underline decoration-ink/40 underline-offset-4 hover:decoration-neon">{SHOP.phone}</a>
+        </p>
 
         <h1 aria-label="You had me @ Boba" className="m-0 font-display font-extrabold uppercase text-ink"
           style={{ textShadow: "0 2px 0 rgba(255,247,238,.55), 0 0 28px rgba(255,247,238,.45)", fontSize: "clamp(64px, 10.8vw, 168px)", lineHeight: 0.86, letterSpacing: "-0.035em", fontVariationSettings: '"opsz" 144', fontWeight: 800 }}>

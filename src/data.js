@@ -71,6 +71,8 @@ export const SHOP = {
   rating: 4.1,
   reviews: 109,
   maps: "https://www.google.com/maps/search/?api=1&query=You+Had+Me+%40+Boba+1010+W+Poplar+Ave+Collierville+TN",
+  // keyless Google Maps embed for the Visit section
+  mapEmbed: "https://www.google.com/maps?q=You%20Had%20Me%20%40%20Boba%2C%201010%20W%20Poplar%20Ave%20Suite%20102%2C%20Collierville%2C%20TN%2038017&output=embed",
   doordash: "https://www.doordash.com/search/store/you%20had%20me%20at%20boba%20collierville/",
   ubereats: "https://www.ubereats.com/search?q=You%20Had%20Me%20%40%20Boba",
   grubhub: "https://www.grubhub.com/search?queryText=You%20Had%20Me%20%40%20Boba",

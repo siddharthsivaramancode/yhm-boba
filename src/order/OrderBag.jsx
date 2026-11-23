@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
-import { SHOP, TREATS, money, lineTotal, reduceMotion, finePointer } from "../data.js";
+import { SHOP, TREATS, money, lineTotal, reduceMotion } from "../data.js";
 import { useBag, bagActions, bagTotal, bagCount, hasUnpriced } from "./store.js";
 import { uiActions } from "../ui/store.js";
 import { ticketLine, itemColor } from "../components/CounterTicket.jsx";
-import { copyText } from "../ui/useDialog.js";
+import { phoneClick } from "../ui/phone.js";
 
 const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),[tabindex]:not([tabindex="-1"])';
 const PARTNERS = [
@@ -182,12 +182,7 @@ export default function OrderBag() {
             <div className="mt-4 flex flex-wrap gap-2">
               <button type="button" disabled={!items.length} className="pill pill-neon flex-1 justify-center"
                 onClick={() => { bagActions.close(); uiActions.openCounter({ lines: items.map(ticketLine), total: items.every((i) => i.price === null) ? null : total, unpriced: hasUnpriced(items), color: itemColor(items[0]) }); }}>Show at counter</button>
-              <a href={"tel:" + SHOP.tel} className="pill pill-ghost" onClick={async (e) => {
-                // desktops usually have nothing to handle tel: links, so copy the number instead; phones still dial
-                if (!finePointer()) return;
-                e.preventDefault();
-                uiActions.toast((await copyText(SHOP.phone)) ? `Phone number copied! ${SHOP.phone}` : `Call ${SHOP.phone}`);
-              }}>Call it in</a>
+              <a href={"tel:" + SHOP.tel} className="pill pill-ghost" onClick={phoneClick}>Call it in</a>
               <button type="button" onClick={copy} disabled={!items.length} className="pill pill-ghost">{copied ? "Copied" : "Copy"}</button>
             </div>
           )}

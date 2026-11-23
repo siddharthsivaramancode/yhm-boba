@@ -4,6 +4,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { SHOP, LOOKBOOK_PHOTOS, shopIsOpen, reduceMotion, finePointer } from "../data.js";
 import { sfx } from "../sfx.js";
 import { copyText } from "../ui/useDialog.js";
+import { phoneClick } from "../ui/phone.js";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -792,9 +793,13 @@ export function Footer() {
             </a>
             <p className="m-0 mt-5 text-oat-2">{SHOP.hours}</p>
             <OpenNow />
-            <p className="m-0 mt-5">
-              <a href={`tel:${SHOP.tel}`} className="text-oat underline decoration-oat/30 underline-offset-4 hover:decoration-neon-2">{SHOP.phone}</a>
-            </p>
+            <a href={`tel:${SHOP.tel}`} onClick={phoneClick} aria-label={`Call the shop at ${SHOP.phone}`}
+              className="mt-6 flex w-fit items-center gap-3 rounded-full border-[1.5px] border-ink bg-espresso px-5 py-3 font-display text-[clamp(24px,2.6vw,32px)] font-bold text-oat no-underline shadow-[3px_3px_0_#231712] transition-transform hover:-translate-x-px hover:-translate-y-px">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2" />
+              </svg>
+              {SHOP.phone}
+            </a>
           </div>
 
           <div>
@@ -809,6 +814,24 @@ export function Footer() {
               ))}
             </div>
           </div>
+        </div>
+
+        {/* location map (keyless embed; loads only when scrolled near) */}
+        <div className="mt-[clamp(48px,7vw,88px)]">
+          <div className="overflow-hidden rounded-card border-2 border-ink shadow-[5px_5px_0_#231712]">
+            <iframe
+              src={SHOP.mapEmbed}
+              title={`Map: ${SHOP.name}, ${SHOP.address}`}
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              allowFullScreen
+              className="block h-[clamp(280px,42vw,440px)] w-full border-0"
+            />
+          </div>
+          <p className="m-0 mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-[15px]">
+            <a href={SHOP.maps} target="_blank" rel="noopener noreferrer" className="font-semibold text-oat underline decoration-oat/30 underline-offset-4 hover:decoration-neon">Open in Google Maps</a>
+            <span className="text-oat-2">{SHOP.address}</span>
+          </p>
         </div>
 
         <div className="relative mt-[clamp(56px,8vw,104px)] overflow-hidden rounded-card tactile p-[clamp(26px,5vw,56px)]" style={{ background: "#FFE9F0" }}>
