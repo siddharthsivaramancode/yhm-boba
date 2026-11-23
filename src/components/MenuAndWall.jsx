@@ -444,46 +444,79 @@ function Note({ n, i, free, wallRef, zRef, onRemove }) {
   );
 }
 
+// Doodle pad. The canvas backing store follows its on-screen size x devicePixelRatio (re-measured on resize
+// and rotation, keeping the drawing), so strokes are crisp and land exactly under the finger. touch-action:
+// none on the canvas only, so drawing never scrolls the page; everywhere else scrolls normally.
+const BRUSHES = [["Fine", 3], ["Bold", 7]];
 function DoodlePad({ onPin }) {
   const cv = useRef(null);
   const ctxR = useRef(null);
   const pen = useRef(null);
   const dirty = useRef(false);
+  const undo = useRef([]); // snapshots (canvas copies) taken before each stroke
   const [ink, setInk] = useState(INKS[0][1]);
+  const [size, setSize] = useState(BRUSHES[0][1]);
+  const [canUndo, setCanUndo] = useState(false);
   const [text, setText] = useState("");
   const [msg, setMsg] = useState("");
 
   useEffect(() => {
-    const c = cv.current, dpr = Math.min(2, window.devicePixelRatio || 1);
-    c.width = 280 * dpr; c.height = 200 * dpr;
-    const x = c.getContext("2d");
-    x.scale(dpr, dpr); x.lineCap = "round"; x.lineJoin = "round"; x.lineWidth = 4;
-    ctxR.current = x;
-    return () => { ctxR.current = null; pen.current = null; };
+    const c = cv.current;
+    const fit = () => {
+      const r = c.getBoundingClientRect(), dpr = Math.min(3, window.devicePixelRatio || 1);
+      const w = Math.max(1, Math.round(r.width * dpr)), h = Math.max(1, Math.round(r.height * dpr));
+      if (c.width === w && c.height === h && ctxR.current) return;
+      const resize = c.width !== w || c.height !== h;
+      const keep = document.createElement("canvas"); keep.width = c.width; keep.height = c.height;
+      if (resize) keep.getContext("2d").drawImage(c, 0, 0);
+      if (resize) { c.width = w; c.height = h; }
+      const x = c.getContext("2d");
+      x.setTransform(dpr, 0, 0, dpr, 0, 0); x.lineCap = "round"; x.lineJoin = "round";
+      if (resize && keep.width > 1) x.drawImage(keep, 0, 0, keep.width, keep.height, 0, 0, r.width, r.height);
+      ctxR.current = x;
+    };
+    fit();
+    const ro = new ResizeObserver(fit); ro.observe(c);
+    return () => { ro.disconnect(); ctxR.current = null; pen.current = null; };
   }, []);
 
-  const pt = (e) => {
-    const r = cv.current.getBoundingClientRect();
-    return { x: ((e.clientX - r.left) * 280) / r.width, y: ((e.clientY - r.top) * 200) / r.height };
+  const pt = (e) => { const r = cv.current.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+  const snapshot = () => {
+    const c = cv.current, k = document.createElement("canvas"); k.width = c.width; k.height = c.height;
+    k.getContext("2d").drawImage(c, 0, 0);
+    undo.current = [...undo.current.slice(-19), k]; setCanUndo(true);
   };
   const down = (e) => {
     if (e.button > 0) return;
+    e.preventDefault();
     cv.current.setPointerCapture(e.pointerId);
+    snapshot();
     const p = pt(e), x = ctxR.current;
-    x.fillStyle = ink; x.strokeStyle = ink;
-    x.beginPath(); x.arc(p.x, p.y, 2.2, 0, 7); x.fill();
-    pen.current = { last: p, mid: p };
+    x.fillStyle = ink; x.strokeStyle = ink; x.lineWidth = size;
+    x.beginPath(); x.arc(p.x, p.y, size / 2, 0, 7); x.fill();
+    pen.current = { id: e.pointerId, last: p, mid: p };
     dirty.current = true; setMsg("");
   };
   const move = (e) => {
     const s = pen.current, x = ctxR.current;
-    if (!s || !x) return;
-    const p = pt(e), mid = { x: (s.last.x + p.x) / 2, y: (s.last.y + p.y) / 2 };
-    x.beginPath(); x.moveTo(s.mid.x, s.mid.y); x.quadraticCurveTo(s.last.x, s.last.y, mid.x, mid.y); x.stroke();
-    s.last = p; s.mid = mid;
+    if (!s || !x || e.pointerId !== s.id) return;
+    // coalesced events give every sample between frames, so fast finger strokes stay smooth
+    const evs = e.nativeEvent.getCoalescedEvents ? e.nativeEvent.getCoalescedEvents() : [];
+    for (const ev of evs.length ? evs : [e.nativeEvent]) {
+      const p = pt(ev), mid = { x: (s.last.x + p.x) / 2, y: (s.last.y + p.y) / 2 };
+      x.beginPath(); x.moveTo(s.mid.x, s.mid.y); x.quadraticCurveTo(s.last.x, s.last.y, mid.x, mid.y); x.stroke();
+      s.last = p; s.mid = mid;
+    }
   };
   const end = () => { pen.current = null; };
-  const clear = () => { ctxR.current && ctxR.current.clearRect(0, 0, 280, 200); dirty.current = false; };
+  const wipe = () => { const c = cv.current, x = ctxR.current; if (!x) return; x.save(); x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, c.width, c.height); x.restore(); };
+  const clear = () => { if (dirty.current) snapshot(); wipe(); dirty.current = false; };
+  const back = () => {
+    const k = undo.current.pop(); if (!k) return;
+    const c = cv.current, x = ctxR.current;
+    wipe(); x.save(); x.setTransform(1, 0, 0, 1, 0, 0); x.drawImage(k, 0, 0, k.width, k.height, 0, 0, c.width, c.height); x.restore();
+    dirty.current = true; setCanUndo(undo.current.length > 0);
+  };
 
   const pin = () => {
     const t = text.trim();
@@ -491,42 +524,56 @@ function DoodlePad({ onPin }) {
     let img = "";
     if (dirty.current) {
       const o = document.createElement("canvas");
-      o.width = 280; o.height = 200;
-      o.getContext("2d").drawImage(cv.current, 0, 0, 280, 200);
+      o.width = 420; o.height = 300;
+      o.getContext("2d").drawImage(cv.current, 0, 0, 420, 300);
       img = o.toDataURL("image/png");
     }
     onPin({ text: t, img });
-    clear(); setText(""); setMsg("Pinned. It's on the wall.");
+    wipe(); dirty.current = false; undo.current = []; setCanUndo(false);
+    setText(""); setMsg("Pinned. It's on the wall.");
     sfx("pin");
   };
 
+  const tool = "grid h-11 min-w-11 place-items-center rounded-full border-[1.5px] border-ink bg-espresso-2 px-3 text-[14px] font-semibold text-oat disabled:opacity-40";
   return (
-    <div className="rounded-card tactile bg-espresso-2 p-5">
+    <div className="min-w-0 rounded-card tactile bg-espresso-2 p-4 sm:p-5">
       <h3 className="font-display text-[26px] font-semibold leading-tight">Leave your mark</h3>
       <p className="mt-1 text-[15px] text-oat-2">Draw something, say hi, or tell the next person what to order.</p>
       <canvas
         ref={cv} data-cursor="DRAW" role="img" aria-label="Drawing pad. Draw with a mouse, finger or stylus."
-        onPointerDown={down} onPointerMove={move} onPointerUp={end} onPointerCancel={end}
-        className="mt-4 block aspect-[280/200] w-full rounded-xl border-[1.5px] border-ink bg-white"
+        onPointerDown={down} onPointerMove={move} onPointerUp={end} onPointerCancel={end} onLostPointerCapture={end}
+        className="mt-4 block aspect-[7/5] w-full rounded-xl border-[1.5px] border-ink bg-white"
         style={{ touchAction: "none" }}
       />
-      <div className="mt-3 flex items-center gap-2.5">
+      {/* one row: colours, brush, undo, clear (44px targets) */}
+      <div className="mt-3 flex flex-wrap items-center gap-1.5">
         {INKS.map(([name, c]) => (
           <button key={c} type="button" aria-label={`${name} pen`} aria-pressed={ink === c} onClick={() => setInk(c)}
-            className="grid h-9 w-9 place-items-center rounded-full">
-            <span className="block h-6 w-6 rounded-full transition-transform duration-300 ease-out"
-              style={{ background: c, transform: ink === c ? "scale(1.2)" : "scale(1)", boxShadow: ink === c ? `0 0 0 2px #FFFDF9, 0 0 0 4px ${c}` : "0 0 0 1.5px #231712" }} />
+            className="grid h-11 w-11 place-items-center rounded-full">
+            <span className="block h-7 w-7 rounded-full transition-transform duration-300 ease-out"
+              style={{ background: c, transform: ink === c ? "scale(1.12)" : "scale(1)", boxShadow: ink === c ? `0 0 0 2px #FFFDF9, 0 0 0 4px ${c}` : "0 0 0 1.5px #231712" }} />
           </button>
         ))}
-        <button type="button" onClick={clear} className="ml-auto rounded-full px-3 py-2 text-[14px] text-oat-2 underline-offset-4 hover:text-oat hover:underline">Clear</button>
+        <button type="button" className={tool} onClick={() => setSize(size === BRUSHES[0][1] ? BRUSHES[1][1] : BRUSHES[0][1])}
+          aria-label={`Brush size: ${size === BRUSHES[0][1] ? "fine" : "bold"}. Tap to switch.`}>
+          <span aria-hidden="true" className="block rounded-full bg-ink" style={{ width: size + 4, height: size + 4 }} />
+        </button>
+        <span className="ml-auto flex gap-1.5">
+          <button type="button" className={tool} onClick={back} disabled={!canUndo} aria-label="Undo last stroke">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5" /><path d="M4 9h11a5 5 0 0 1 0 10h-3" /></svg>
+          </button>
+          <button type="button" className={tool} onClick={clear}>Clear</button>
+        </span>
       </div>
       <label className="mt-3 block text-[14px] text-oat-2" htmlFor="wall-text">A few words (optional)</label>
       <input id="wall-text" value={text} maxLength={80} onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => { if (e.key === "Enter") pin(); }}
+        onFocus={(e) => { const el = e.currentTarget; setTimeout(() => el.scrollIntoView({ block: "center", behavior: "smooth" }), 300); }}
+        enterKeyHint="done"
         className="mt-1 w-full rounded-xl border-[1.5px] border-ink bg-white px-3.5 py-3 text-[16px] text-oat placeholder:text-oat-3 focus:border-neon-2 focus:outline-none"
         placeholder="Best boba in town" />
       <div className="mt-1 text-right text-[12.5px] text-oat-3">{text.length}/80</div>
-      <button type="button" onClick={pin} className="pill pill-neon magnetic mt-2 w-full">Pin it to the wall</button>
+      <button type="button" onClick={pin} className="pill pill-neon mt-2 w-full" style={{ minHeight: 50 }}>Pin it to the wall</button>
       <p role="status" aria-live="polite" className="mt-3 min-h-[1.4em] text-[14px] text-neon-2">{msg}</p>
       <p className="text-[13px] text-oat-3">Notes stay on this device.</p>
     </div>
@@ -538,7 +585,7 @@ export function ScribbleWall() {
   const row = useRef(null);
   const z = useRef(10);
   const [mine, setMine] = useState(loadNotes);
-  const mobile = useMedia("(max-width: 767px)");
+  const mobile = useMedia("(max-width: 767px), (pointer: coarse)");
   const [qr, setQr] = useState(null); // opener button while the QR sheet is open
 
   useEffect(() => {
@@ -588,10 +635,10 @@ export function ScribbleWall() {
         </button>
         </div>
 
-        <div className="mt-[clamp(32px,5vw,56px)] grid items-start gap-8 lg:grid-cols-[1fr_320px]">
+        <div className="mt-[clamp(32px,5vw,56px)] grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
           <div
             ref={wall}
-            className={`relative rounded-card tactile ${mobile ? "" : "h-[760px] overflow-hidden"}`}
+            className={`relative min-w-0 rounded-card tactile ${mobile ? "overflow-hidden" : "h-[760px] overflow-hidden"}`}
             style={{
               background:
                 "radial-gradient(1px 1px at 20% 30%, rgba(35,23,18,.10) 50%, transparent 51%), radial-gradient(1px 1px at 70% 60%, rgba(255,77,141,.18) 50%, transparent 51%), radial-gradient(120% 90% at 30% 0%, #FFF5F9 0%, #FFEBF2 60%, #FFE0EC 100%)",
@@ -608,7 +655,7 @@ export function ScribbleWall() {
               <circle cx="210" cy="150" r="22" />
             </svg>
             {mobile ? (
-              <div ref={row} className="flex snap-x snap-mandatory gap-5 overflow-x-auto px-5 pb-8 pt-8" tabIndex={-1}>
+              <div ref={row} className="flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain scroll-px-5 px-5 pb-6 pt-8" style={{ touchAction: "pan-x pan-y" }} tabIndex={-1}>
                 {list.map((n, i) => <Note key={n.id} n={n} i={i} free={false} wallRef={wall} zRef={z} onRemove={remove} />)}
               </div>
             ) : (
@@ -618,7 +665,7 @@ export function ScribbleWall() {
           <DoodlePad onPin={pin} />
           {qr && <WallQR opener={qr} onClose={() => setQr(null)} />}
         </div>
-        {!mobile && <p className="mt-4 text-[14px] text-oat-3">Drag a note around, or focus one and use the arrow keys.</p>}
+        <p className="mt-4 text-[14px] text-oat-3">{mobile ? "Swipe the notes sideways to read them all." : "Drag a note around, or focus one and use the arrow keys."}</p>
       </div>
     </section>
   );
